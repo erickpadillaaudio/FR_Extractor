@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extractor de Respuesta de Frecuencia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .method-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .method-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .method-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.1);
+        }
+        
+        .method-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea20, #764ba220);
+        }
+        
+        .method-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .method-description {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input[type="url"], input[type="file"], textarea, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        input[type="url"]:focus, input[type="file"]:focus, textarea:focus, input[type="number"]:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: monospace;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 140px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .output-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .preview {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .canvas-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        canvas {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            max-width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        
+        .format-info {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #004085;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .calibration-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .calibration-point {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .calibration-step {
+            background: #f8f9fa;
+            border: 2px dashed #adb5bd;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .calibration-active {
+            border-color: #667eea;
+            background: #e9ecef;
+        }
+        
+        .filename-input {
+            margin: 15px 0;
+        }
+        
+        .filename-input label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .filename-input input {
+            width: 100%;
+            padding: 10px;
+        }
+        
+        .shortcut-hint {
+            font-size: 0.8em;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔊 Extractor de Respuesta de Frecuencia (RiTA y Smaart)</h1>
+        
+        <div class="method-selector">
+            <div class="method-card active" data-method="image">
+                <div class="method-title">📷 Subir Imagen</div>
+                <div class="method-description">Sube una imagen del gráfico de respuesta de frecuencia</div>
+            </div>
+            <div class="method-card" data-method="manual">
+                <div class="method-title">✏️ Datos Manuales</div>
+                <div class="method-description">Pega datos de frecuencia y magnitud directamente</div>
+            </div>
+        </div>
+
+        <!-- Método: Subir Imagen -->
+        <div id="image-method">
+            <div class="input-section">
+                <label for="imageFile">Seleccionar imagen del gráfico:</label>
+                <input type="file" id="imageFile" accept="image/*">
+                <div class="instructions">
+                    📋 <strong>Instrucciones:</strong> Selecciona una imagen clara del gráfico de respuesta de frecuencia. 
+                    Después de cargar, podrás calibrar los ejes y hacer clic en puntos específicos para extraer datos.
+                    <div class="shortcut-hint">(Usa <strong>Ctrl/Cmd + Z</strong> para deshacer el último punto)</div>
+                </div>
+            </div>
+            
+            <!-- Sección de calibración -->
+            <div id="calibration-section" class="calibration-step">
+                <h3>🔧 Calibración de Ejes</h3>
+                <p>Para una extracción precisa, calibra los ejes del gráfico haciendo clic en 4 puntos conocidos:</p>
+                
+                <div class="calibration-controls">
+                    <div>
+                        <div class="calibration-point">
+                            <label>1. Frecuencia mínima (Hz):</label>
+                            <input type="number" id="freqMin" placeholder="Ej: 20" min="1" step="1">
+                        </div>
+                        <div class="calibration-point">
+                            <label>2. Frecuencia máxima (Hz):</label>
+                            <input type="number" id="freqMax" placeholder="Ej: 20000" min="1" step="1">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="calibration-point">
+                            <label>3. Magnitud mínima (dB):</label>
+                            <input type="number" id="magMin" placeholder="Ej: -20" step="0.1">
+                        </div>
+                        <div class="calibration-point">
+                            <label>4. Magnitud máxima (dB):</label>
+                            <input type="number" id="magMax" placeholder="Ej: 10" step="0.1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="startCalibrationBtn">🎯 Iniciar Calibración</button>
+                    <button id="confirmCalibrationBtn" disabled>✅ Confirmar Calibración</button>
+                    <button id="resetCalibrationBtn">🔄 Reiniciar</button>
+                </div>
+                
+                <div id="calibrationStatus"></div>
+            </div>
+            
+            <div class="canvas-container">
+                <canvas id="imageCanvas" style="display: none;"></canvas>
+            </div>
+        </div>
+
+        <!-- Método: Manual -->
+        <div id="manual-method" class="hidden">
+            <div class="input-section">
+                <label for="manualData">Datos de frecuencia y magnitud:</label>
+                <textarea id="manualData" placeholder="Formato: frecuencia,magnitud (una por línea)
+Ejemplo:
+20,0
+50,-1
+100,-2
+200,-1
+500,0
+1000,1
+2000,0
+5000,-3
+10000,-6
+20000,-12"></textarea>
+                <div class="instructions">
+                    📋 <strong>Formato:</strong> Ingresa los datos como "frecuencia,magnitud" una por línea. 
+                    Frecuencia en Hz, magnitud en dB.
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="processBtn">🔄 Procesar Datos</button>
+            <button id="clearBtn">🗑️ Limpiar</button>
+            <button id="undoBtn" disabled>↩️ Deshacer</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div id="output" class="output-section" style="display: none;">
+            <h3>📊 Vista previa de datos extraídos:</h3>
+            <div id="dataPreview" class="preview"></div>
+            
+            <div class="filename-input">
+                <label for="exportFilename">Nombre del archivo de exportación:</label>
+                <input type="text" id="exportFilename" placeholder="Ej: Respuesta_Sala_A" value="FR_Export_Data">
+            </div>
+            
+            <div class="filename-input">
+                <label for="exportFormat">Formato de exportación:</label>
+                <select id="exportFormat">
+                    <option value="smaart">SMAART</option>
+                    <option value="rita">RiTA</option>
+                </select>
+            </div>
+
+            <!-- Botón de exportación movido aquí -->
+            <div class="button-group" style="margin-top: 20px;">
+                <button id="exportBtn" disabled>📥 Exportar Datos</button>
+            </div>
+            
+            <div class="format-info">
+                <strong>📋 Formato de exportación:</strong><br>
+                • Archivo TXT compatible con SMAART<br>
+                • Columnas: Frecuencia (Hz) | Magnitud (dB)<br>
+                • Separado por tabulaciones<br>
+                • Listo para importar en SMAART como "Reference Trace"
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let extractedData = [];
+        let currentMethod = 'image';
+        let calibrationPoints = [];
+        let calibrationStep = 0;
+        let calibrationData = {
+            freqMin: 20,
+            freqMax: 20000,
+            magMin: -20,
+            magMax: 10,
+            x1: 0, y1: 0,
+            x2: 0, y2: 0,
+            x3: 0, y3: 0,
+            x4: 0, y4: 0
+        };
+        let canvasHistory = [];
+        let baseImage = null;
+
+        // Esperar a que el DOM esté completamente cargado
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar elementos
+            const processBtn = document.getElementById('processBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const undoBtn = document.getElementById('undoBtn');
+            const startCalibrationBtn = document.getElementById('startCalibrationBtn');
+            const confirmCalibrationBtn = document.getElementById('confirmCalibrationBtn');
+            const resetCalibrationBtn = document.getElementById('resetCalibrationBtn');
+            
+            // Asignar event listeners
+            processBtn.addEventListener('click', processData);
+            exportBtn.addEventListener('click', exportData);
+            clearBtn.addEventListener('click', clearData);
+            undoBtn.addEventListener('click', undoLastPoint);
+            startCalibrationBtn.addEventListener('click', startCalibration);
+            confirmCalibrationBtn.addEventListener('click', confirmCalibration);
+            resetCalibrationBtn.addEventListener('click', resetCalibration);
+            
+            // Selector de método
+            document.querySelectorAll('.method-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    currentMethod = this.dataset.method;
+                    
+                    // Ocultar todos los métodos y mostrar el seleccionado
+                    document.querySelectorAll('[id$="-method"]').forEach(el => el.classList.add('hidden'));
+                    document.getElementById(currentMethod + '-method').classList.remove('hidden');
+                });
+            });
+            
+            // Manejo de imagen
+            document.getElementById('imageFile').addEventListener('change', handleImageFile);
+            
+            // Cargar valores por defecto para calibración
+            document.getElementById('freqMin').value = calibrationData.freqMin;
+            document.getElementById('freqMax').value = calibrationData.freqMax;
+            document.getElementById('magMin').value = calibrationData.magMin;
+            document.getElementById('magMax').value = calibrationData.magMax;
+            
+            // Event listener para Ctrl/Cmd + Z
+            document.addEventListener('keydown', function(e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    undoLastPoint();
+                    e.preventDefault();
+                }
+            });
+        });
+        
+        function handleImageFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    loadImageToCanvas(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function loadImageToCanvas(src) {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Ajustar tamaño del canvas manteniendo relación de aspecto
+                const maxWidth = 800;
+                const maxHeight = 600;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                
+                if (height > maxHeight) {
+                    width = (maxHeight / height) * width;
+                    height = maxHeight;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.style.display = 'block';
+                
+                // Guardar imagen base
+                baseImage = new Image();
+                baseImage.src = canvas.toDataURL();
+                
+                // Reiniciar historial
+                canvasHistory = [];
+                saveCanvasState();
+                
+                showStatus('Imagen cargada. Por favor calibra los ejes antes de extraer datos.', 'info');
+            };
+            
+            img.onerror = function() {
+                showStatus('Error al cargar la imagen. Verifica el archivo.', 'error');
+            };
+            
+            img.src = src;
+        }
+        
+        function saveCanvasState() {
+            const canvas = document.getElementById('imageCanvas');
+            canvasHistory.push(canvas.toDataURL());
+            updateUndoButton();
+        }
+        
+        function startCalibration() {
+            // Obtener valores de calibración
+            calibrationData.freqMin = parseFloat(document.getElementById('freqMin').value) || 20;
+            calibrationData.freqMax = parseFloat(document.getElementById('freqMax').value) || 20000;
+            calibrationData.magMin = parseFloat(document.getElementById('magMin').value) || -20;
+            calibrationData.magMax = parseFloat(document.getElementById('magMax').value) || 10;
+            
+            // Validar valores
+            if (calibrationData.freqMin >= calibrationData.freqMax) {
+                showCalibrationStatus('La frecuencia mínima debe ser menor que la máxima', 'error');
+                return;
+            }
+            
+            if (calibrationData.magMin >= calibrationData.magMax) {
+                showCalibrationStatus('La magnitud mínima debe ser menor que la máxima', 'error');
+                return;
+            }
+            
+            // Preparar para calibración
+            calibrationPoints = [];
+            calibrationStep = 1;
+            
+            const canvas = document.getElementById('imageCanvas');
+            canvas.onclick = handleCalibrationClick;
+            
+            document.getElementById('calibration-section').classList.add('calibration-active');
+            document.getElementById('startCalibrationBtn').disabled = true;
+            document.getElementById('confirmCalibrationBtn').disabled = true;
+            
+            showCalibrationStatus('Paso 1/4: Haz clic en el punto correspondiente a la frecuencia mínima (' + calibrationData.freqMin + ' Hz)', 'info');
+        }
+        
+        function handleCalibrationClick(event) {
+            const canvas = document.getElementById('imageCanvas');
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Dibujar punto de calibración
+            ctx.fillStyle = ['red', 'blue', 'green', 'purple'][calibrationStep-1];
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Almacenar punto de calibración
+            calibrationPoints.push({x, y});
+            
+            // Actualizar instrucciones
+            calibrationStep++;
+            
+            if (calibrationStep <= 4) {
+                let instruction = '';
+                switch(calibrationStep) {
+                    case 2:
+                        instruction = 'Paso 2/4: Haz clic en el punto correspondiente a la frecuencia máxima (' + calibrationData.freqMax + ' Hz)';
+                        break;
+                    case 3:
+                        instruction = 'Paso 3/4: Haz clic en el punto correspondiente a la magnitud mínima (' + calibrationData.magMin + ' dB)';
+                        break;
+                    case 4:
+                        instruction = 'Paso 4/4: Haz clic en el punto correspondiente a la magnitud máxima (' + calibrationData.magMax + ' dB)';
+                        break;
+                }
+                showCalibrationStatus(instruction, 'info');
+            } else {
+                // Calibración completa
+                calibrationData.x1 = calibrationPoints[0].x;
+                calibrationData.y1 = calibrationPoints[0].y;
+                calibrationData.x2 = calibrationPoints[1].x;
+                calibrationData.y2 = calibrationPoints[1].y;
+                calibrationData.x3 = calibrationPoints[2].x;
+                calibrationData.y3 = calibrationPoints[2].y;
+                calibrationData.x4 = calibrationPoints[3].x;
+                calibrationData.y4 = calibrationPoints[3].y;
+                
+                showCalibrationStatus('Calibración completa. Verifica los puntos y confirma.', 'success');
+                document.getElementById('confirmCalibrationBtn').disabled = false;
+                
+                // Dibujar ejes calibrados
+                drawCalibratedAxes();
+            }
+        }
+        
+        function drawCalibratedAxes() {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Dibujar línea de frecuencia (eje X)
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(calibrationData.x1, calibrationData.y1);
+            ctx.lineTo(calibrationData.x2, calibrationData.y2);
+            ctx.stroke();
+            
+            // Dibujar línea de magnitud (eje Y)
+            ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(calibrationData.x3, calibrationData.y3);
+            ctx.lineTo(calibrationData.x4, calibrationData.y4);
+            ctx.stroke();
+        }
+        
+        function confirmCalibration() {
+            // Configurar el canvas para extracción de datos
+            const canvas = document.getElementById('imageCanvas');
+            canvas.onclick = handleDataExtractionClick;
+            
+            document.getElementById('calibration-section').classList.remove('calibration-active');
+            document.getElementById('startCalibrationBtn').disabled = false;
+            
+            showCalibrationStatus('Calibración confirmada. Ahora puedes hacer clic en la curva para extraer datos.', 'success');
+            showStatus('Calibración completada. Haz clic en puntos de la curva para extraer datos.', 'info');
+            
+            // Limpiar después de 5 segundos
+            setTimeout(() => {
+                document.getElementById('calibrationStatus').innerHTML = '';
+            }, 5000);
+        }
+        
+        function resetCalibration() {
+            calibrationPoints = [];
+            calibrationStep = 0;
+            
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Redibujar la imagen base si existe
+            if (baseImage) {
+                ctx.drawImage(baseImage, 0, 0);
+            }
+            
+            document.getElementById('calibration-section').classList.remove('calibration-active');
+            document.getElementById('startCalibrationBtn').disabled = false;
+            document.getElementById('confirmCalibrationBtn').disabled = true;
+            
+            showCalibrationStatus('Calibración reiniciada. Puedes comenzar de nuevo.', 'info');
+        }
+        
+        function handleDataExtractionClick(event) {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Guardar estado actual del canvas
+            saveCanvasState();
+            
+            // Convertir coordenadas
+            const frequency = convertXToFrequency(x);
+            const magnitude = convertYToMagnitude(y);
+            
+            // Almacenar punto
+            extractedData.push({freq: frequency, mag: magnitude});
+            
+            // Dibujar solo el punto rojo
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            updatePreview();
+        }
+        
+        function undoLastPoint() {
+            if (extractedData.length === 0 || canvasHistory.length <= 1) return;
+            
+            // Eliminar último punto
+            extractedData.pop();
+            canvasHistory.pop();
+            
+            // Restaurar canvas
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = canvasHistory[canvasHistory.length - 1];
+            
+            updatePreview();
+            updateUndoButton();
+            showStatus('Último punto eliminado', 'info');
+        }
+        
+        function updateUndoButton() {
+            const undoBtn = document.getElementById('undoBtn');
+            undoBtn.disabled = extractedData.length === 0;
+        }
+        
+        function convertXToFrequency(x) {
+            // Mapear coordenada X a valor de frecuencia (escala logarítmica)
+            const { x1, x2, freqMin, freqMax } = calibrationData;
+            
+            // Calcular posición relativa en el eje X (0 a 1)
+            const t = (x - x1) / (x2 - x1);
+            
+            // Escala logarítmica para frecuencia
+            return freqMin * Math.pow(freqMax / freqMin, t);
+        }
+        
+        function convertYToMagnitude(y) {
+            // Mapear coordenada Y a valor de magnitud (escala lineal)
+            const { y3, y4, magMin, magMax } = calibrationData;
+            
+            // Calcular posición relativa en el eje Y (0 a 1)
+            const t = (y - y3) / (y4 - y3);
+            
+            // Escala lineal para magnitud
+            return magMin + t * (magMax - magMin);
+        }
+        
+        function processData() {
+            try {
+                if (currentMethod === 'manual') {
+                    processManualData();
+                } else if (extractedData.length === 0) {
+                    showStatus('No hay datos para procesar. Sube una imagen, calibra y haz clic en puntos del gráfico.', 'error');
+                    return;
+                }
+                
+                // Ordenar y limpiar datos
+                extractedData.sort((a, b) => a.freq - b.freq);
+                removeDuplicateFrequencies();
+                
+                updatePreview();
+                showStatus(`✅ Procesados ${extractedData.length} puntos de datos.`, 'success');
+                
+            } catch (error) {
+                console.error('Error al procesar:', error);
+                showStatus('Error al procesar los datos. Verifica el formato.', 'error');
+            }
+        }
+        
+        function processManualData() {
+            const data = document.getElementById('manualData').value.trim();
+            if (!data) {
+                showStatus('Por favor ingresa los datos manuales.', 'error');
+                return;
+            }
+            
+            extractedData = [];
+            const lines = data.split('\n');
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (line && !line.startsWith('#')) {
+                    const parts = line.split(/[,;\t]/).map(v => v.trim());
+                    if (parts.length >= 2) {
+                        const freq = parseFloat(parts[0]);
+                        const mag = parseFloat(parts[1]);
+                        if (!isNaN(freq) && !isNaN(mag)) {
+                            extractedData.push({freq, mag});
+                        }
+                    }
+                }
+            }
+            
+            if (extractedData.length === 0) {
+                throw new Error('No se encontraron datos válidos');
+            }
+        }
+        
+        function removeDuplicateFrequencies() {
+            const uniqueData = [];
+            const freqSet = new Set();
+            
+            for (const point of extractedData) {
+                if (!freqSet.has(point.freq)) {
+                    freqSet.add(point.freq);
+                    uniqueData.push(point);
+                }
+            }
+            
+            extractedData = uniqueData;
+        }
+        
+        function updatePreview() {
+            if (extractedData.length === 0) {
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('exportBtn').disabled = true;
+                updateUndoButton();
+                return;
+            }
+            
+            let preview = 'Frecuencia (Hz)\tMagnitud (dB)\n';
+            preview += '─'.repeat(30) + '\n';
+            
+            extractedData.forEach(point => {
+                preview += `${point.freq.toFixed(1)}\t${point.mag.toFixed(2)}\n`;
+            });
+            
+            document.getElementById('dataPreview').textContent = preview;
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('exportBtn').disabled = false;
+            updateUndoButton();
+        }
+        
+        function interpolateData(originalData, stepsPerOctave = 12) {
+    if (originalData.length < 2) return originalData;
+
+    // Asegurar que estén ordenados
+    originalData.sort((a, b) => a.freq - b.freq);
+
+    const interpolated = [];
+
+    for (let i = 0; i < originalData.length - 1; i++) {
+        const p1 = originalData[i];
+        const p2 = originalData[i + 1];
+
+        // Log steps in freq domain
+        const f1 = p1.freq;
+        const f2 = p2.freq;
+        const m1 = p1.mag;
+        const m2 = p2.mag;
+
+        const steps = Math.ceil(Math.log2(f2 / f1) * stepsPerOctave);
+
+        for (let s = 0; s < steps; s++) {
+            const t = s / steps;
+            const freq = f1 * Math.pow(f2 / f1, t); // log space
+            const mag = m1 + (m2 - m1) * t;          // linear interp
+            interpolated.push({ freq, mag });
+        }
+    }
+
+    // Incluir último punto
+    interpolated.push(originalData[originalData.length - 1]);
+    return interpolated;
+}
+
+        
+        function exportData() {
+    if (extractedData.length === 0) {
+        alert('No hay datos para exportar.');
+        return;
+    }
+
+    let filename = document.getElementById('exportFilename').value.trim();
+    const format = document.getElementById('exportFormat').value;
+    if (!filename) filename = 'Exportacion_FR';
+    if (!filename.toLowerCase().endsWith('.txt')) filename += '.txt';
+
+    // 👉 Interpolar antes de exportar
+    const dataToExport = interpolateData(extractedData, 24); // 24 pasos por octava
+
+    let content = '';
+
+    if (format === 'smaart') {
+        content += '# Frequency Response Data for SMAART\n';
+        content += '# Frequency (Hz)\tMagnitude (dB)\n';
+        dataToExport.forEach(p => {
+            content += `${p.freq.toFixed(1)}\t${p.mag.toFixed(2)}\n`;
+        });
+    } else if (format === 'rita') {
+        content += '\tMyMeasurement\n';
+        content += 'Frequency (Hz)\tMagnitude (dB)\tPhase (degrees)\tCoherence\n';
+        dataToExport.forEach(p => {
+            content += `${p.freq.toFixed(6)}\t${p.mag.toFixed(2)}\t0.00\t0.00\n`;
+        });
+    }
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+        
+        function clearData() {
+            extractedData = [];
+            calibrationPoints = [];
+            calibrationStep = 0;
+            canvasHistory = [];
+            
+            document.getElementById('dataPreview').textContent = '';
+            document.getElementById('output').style.display = 'none';
+            document.getElementById('exportBtn').disabled = true;
+            document.getElementById('status').innerHTML = '';
+            document.getElementById('calibrationStatus').innerHTML = '';
+            document.getElementById('exportFilename').value = 'FR_Export_Data';
+            
+            // Limpiar canvas
+            const canvas = document.getElementById('imageCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.style.display = 'none';
+            }
+            
+            // Limpiar inputs
+            document.getElementById('imageFile').value = '';
+            document.getElementById('manualData').value = '';
+            
+            // Restablecer botones de calibración
+            document.getElementById('startCalibrationBtn').disabled = false;
+            document.getElementById('confirmCalibrationBtn').disabled = true;
+            document.getElementById('calibration-section').classList.remove('calibration-active');
+            document.getElementById('undoBtn').disabled = true;
+            
+            showStatus('Datos limpiados.', 'info');
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        function showCalibrationStatus(message, type) {
+            const statusDiv = document.getElementById('calibrationStatus');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
