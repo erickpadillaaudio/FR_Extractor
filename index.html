@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor de Respuesta de Frecuencia</title>
+    <title>Extractor / Conversor FR (RiTA, Smaart)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -87,7 +87,7 @@
             color: #2c3e50;
         }
         
-        input[type="url"], input[type="file"], textarea, input[type="number"], input[type="text"] {
+        input[type="url"], input[type="file"], textarea, input[type="number"], input[type="text"], select {
             width: 100%;
             padding: 12px;
             border: 2px solid #e9ecef;
@@ -97,7 +97,7 @@
             box-sizing: border-box;
         }
         
-        input[type="url"]:focus, input[type="file"]:focus, textarea:focus, input[type="number"]:focus, input[type="text"]:focus {
+        input[type="url"]:focus, input[type="file"]:focus, textarea:focus, input[type="number"]:focus, input[type="text"]:focus, select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -270,11 +270,17 @@
             text-align: center;
             margin-top: 10px;
         }
+
+        hr.dashed {
+            margin: 15px 0;
+            border: 0;
+            border-top: 1px dashed #ced4da;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔊 Extractor de Respuesta de Frecuencia (RiTA y Smaart)</h1>
+        <h1>🔊 Extractor / Conversor de Respuesta de Frecuencia (RiTA y Smaart)</h1>
         
         <div class="method-selector">
             <div class="method-card active" data-method="image">
@@ -282,8 +288,8 @@
                 <div class="method-description">Sube una imagen del gráfico de respuesta de frecuencia</div>
             </div>
             <div class="method-card" data-method="manual">
-                <div class="method-title">✏️ Datos Manuales</div>
-                <div class="method-description">Pega datos de frecuencia y magnitud directamente</div>
+                <div class="method-title">✏️ Datos Manuales / Conversor</div>
+                <div class="method-description">Pega datos o sube un archivo .txt/.crv y conviértelo</div>
             </div>
         </div>
 
@@ -341,10 +347,10 @@
             </div>
         </div>
 
-        <!-- Método: Manual -->
+        <!-- Método: Manual / Conversor -->
         <div id="manual-method" class="hidden">
             <div class="input-section">
-                <label for="manualData">Datos de frecuencia y magnitud:</label>
+                <label for="manualData">Pegar datos de frecuencia y magnitud:</label>
                 <textarea id="manualData" placeholder="Formato: frecuencia,magnitud (una por línea)
 Ejemplo:
 20,0
@@ -358,8 +364,16 @@ Ejemplo:
 10000,-6
 20000,-12"></textarea>
                 <div class="instructions">
-                    📋 <strong>Formato:</strong> Ingresa los datos como "frecuencia,magnitud" una por línea. 
-                    Frecuencia en Hz, magnitud en dB.
+                    📋 <strong>Formato libre:</strong> Se aceptan separadores coma, tab o punto y coma. Frecuencia en Hz y magnitud en dB.
+                </div>
+
+                <hr class="dashed">
+
+                <label for="manualFile">O subir un archivo existente (.txt / .crv):</label>
+                <input type="file" id="manualFile" accept=".txt,.crv,.TXT,.CRV">
+                <div class="instructions">
+                    Acepta: <strong>Smaart TF ASCII (.txt)</strong>, <strong>RiTA ASCII (.txt)</strong> y <strong>Smaart Target Curve (.crv)</strong>.
+                    El formato se detecta automáticamente. Luego puedes exportar a cualquiera de los formatos soportados.
                 </div>
             </div>
         </div>
@@ -373,7 +387,7 @@ Ejemplo:
         <div id="status"></div>
 
         <div id="output" class="output-section" style="display: none;">
-            <h3>📊 Vista previa de datos extraídos:</h3>
+            <h3>📊 Vista previa de datos:</h3>
             <div id="dataPreview" class="preview"></div>
             
             <div class="filename-input">
@@ -390,22 +404,23 @@ Ejemplo:
                 </select>
             </div>
 
-            <!-- Botón de exportación movido aquí -->
             <div class="button-group" style="margin-top: 20px;">
                 <button id="exportBtn" disabled>📥 Exportar Datos</button>
             </div>
             
             <div class="format-info">
-                <strong>📋 Formato de exportación:</strong><br>
-                • Archivo .txt ASCII compatible con Smaart en Transfer Function<br>
-                • Archivo .crv para Target Curves en Smaart modo Transfer Function<br>
-                En Smaart Menú Options/ Target Curves/ Transfet Function Import
+                <strong>📋 Formatos de exportación:</strong><br>
+                • .txt ASCII compatible con Smaart (Transfer Function)<br>
+                • .txt ASCII compatible con RiTA<br>
+                • .crv compatible con Smaart Target Curves (TF)<br>
             </div>
         </div>
     </div>
 
     <script>
-        // Variables globales
+        // =====================
+        // Estado global
+        // =====================
         let extractedData = [];
         let currentMethod = 'image';
         let calibrationPoints = [];
@@ -422,10 +437,12 @@ Ejemplo:
         };
         let canvasHistory = [];
         let baseImage = null;
+        let lastImportedFormat = null;
 
-        // Esperar a que el DOM esté completamente cargado
+        // =====================
+        // Init
+        // =====================
         document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar elementos
             const processBtn = document.getElementById('processBtn');
             const exportBtn = document.getElementById('exportBtn');
             const clearBtn = document.getElementById('clearBtn');
@@ -434,7 +451,6 @@ Ejemplo:
             const confirmCalibrationBtn = document.getElementById('confirmCalibrationBtn');
             const resetCalibrationBtn = document.getElementById('resetCalibrationBtn');
             
-            // Asignar event listeners
             processBtn.addEventListener('click', processData);
             exportBtn.addEventListener('click', exportData);
             clearBtn.addEventListener('click', clearData);
@@ -460,13 +476,16 @@ Ejemplo:
             // Manejo de imagen
             document.getElementById('imageFile').addEventListener('change', handleImageFile);
             
-            // Cargar valores por defecto para calibración
+            // Manual: carga de archivo
+            document.getElementById('manualFile').addEventListener('change', handleManualFile);
+            
+            // Calibración por defecto
             document.getElementById('freqMin').value = calibrationData.freqMin;
             document.getElementById('freqMax').value = calibrationData.freqMax;
             document.getElementById('magMin').value = calibrationData.magMin;
             document.getElementById('magMax').value = calibrationData.magMax;
             
-            // Event listener para Ctrl/Cmd + Z
+            // Ctrl/Cmd + Z
             document.addEventListener('keydown', function(e) {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                     undoLastPoint();
@@ -475,6 +494,9 @@ Ejemplo:
             });
         });
         
+        // =====================
+        // Imagen -> Canvas
+        // =====================
         function handleImageFile(event) {
             const file = event.target.files[0];
             if (file) {
@@ -492,7 +514,6 @@ Ejemplo:
             const img = new Image();
             
             img.onload = function() {
-                // Ajustar tamaño del canvas manteniendo relación de aspecto
                 const maxWidth = 800;
                 const maxHeight = 600;
                 let width = img.width;
@@ -514,15 +535,13 @@ Ejemplo:
                 ctx.drawImage(img, 0, 0, width, height);
                 canvas.style.display = 'block';
                 
-                // Guardar imagen base
                 baseImage = new Image();
                 baseImage.src = canvas.toDataURL();
                 
-                // Reiniciar historial
                 canvasHistory = [];
                 saveCanvasState();
                 
-                showStatus('Imagen cargada. Por favor calibra los ejes antes de extraer datos.', 'info');
+                showStatus('Imagen cargada. Calibra e inicia extracción.', 'info');
             };
             
             img.onerror = function() {
@@ -538,25 +557,24 @@ Ejemplo:
             updateUndoButton();
         }
         
+        // =====================
+        // Calibración
+        // =====================
         function startCalibration() {
-            // Obtener valores de calibración
             calibrationData.freqMin = parseFloat(document.getElementById('freqMin').value) || 20;
             calibrationData.freqMax = parseFloat(document.getElementById('freqMax').value) || 20000;
             calibrationData.magMin = parseFloat(document.getElementById('magMin').value) || -20;
             calibrationData.magMax = parseFloat(document.getElementById('magMax').value) || 10;
             
-            // Validar valores
             if (calibrationData.freqMin >= calibrationData.freqMax) {
                 showCalibrationStatus('La frecuencia mínima debe ser menor que la máxima', 'error');
                 return;
             }
-            
             if (calibrationData.magMin >= calibrationData.magMax) {
                 showCalibrationStatus('La magnitud mínima debe ser menor que la máxima', 'error');
                 return;
             }
             
-            // Preparar para calibración
             calibrationPoints = [];
             calibrationStep = 1;
             
@@ -567,7 +585,7 @@ Ejemplo:
             document.getElementById('startCalibrationBtn').disabled = true;
             document.getElementById('confirmCalibrationBtn').disabled = true;
             
-            showCalibrationStatus('Paso 1/4: Haz clic en el punto correspondiente a la frecuencia mínima (' + calibrationData.freqMin + ' Hz)', 'info');
+            showCalibrationStatus('Paso 1/4: Clic en la frecuencia mínima (' + calibrationData.freqMin + ' Hz)', 'info');
         }
         
         function handleCalibrationClick(event) {
@@ -577,35 +595,29 @@ Ejemplo:
             const y = event.clientY - rect.top;
             
             const ctx = canvas.getContext('2d');
-            
-            // Dibujar punto de calibración
             ctx.fillStyle = ['red', 'blue', 'green', 'purple'][calibrationStep-1];
             ctx.beginPath();
             ctx.arc(x, y, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Almacenar punto de calibración
             calibrationPoints.push({x, y});
-            
-            // Actualizar instrucciones
             calibrationStep++;
             
             if (calibrationStep <= 4) {
                 let instruction = '';
                 switch(calibrationStep) {
                     case 2:
-                        instruction = 'Paso 2/4: Haz clic en el punto correspondiente a la frecuencia máxima (' + calibrationData.freqMax + ' Hz)';
+                        instruction = 'Paso 2/4: Clic en la frecuencia máxima (' + calibrationData.freqMax + ' Hz)';
                         break;
                     case 3:
-                        instruction = 'Paso 3/4: Haz clic en el punto correspondiente a la magnitud mínima (' + calibrationData.magMin + ' dB)';
+                        instruction = 'Paso 3/4: Clic en la magnitud mínima (' + calibrationData.magMin + ' dB)';
                         break;
                     case 4:
-                        instruction = 'Paso 4/4: Haz clic en el punto correspondiente a la magnitud máxima (' + calibrationData.magMax + ' dB)';
+                        instruction = 'Paso 4/4: Clic en la magnitud máxima (' + calibrationData.magMax + ' dB)';
                         break;
                 }
                 showCalibrationStatus(instruction, 'info');
             } else {
-                // Calibración completa
                 calibrationData.x1 = calibrationPoints[0].x;
                 calibrationData.y1 = calibrationPoints[0].y;
                 calibrationData.x2 = calibrationPoints[1].x;
@@ -615,10 +627,9 @@ Ejemplo:
                 calibrationData.x4 = calibrationPoints[3].x;
                 calibrationData.y4 = calibrationPoints[3].y;
                 
-                showCalibrationStatus('Calibración completa. Verifica los puntos y confirma.', 'success');
+                showCalibrationStatus('Calibración completa. Verifica y confirma.', 'success');
                 document.getElementById('confirmCalibrationBtn').disabled = false;
                 
-                // Dibujar ejes calibrados
                 drawCalibratedAxes();
             }
         }
@@ -627,7 +638,6 @@ Ejemplo:
             const canvas = document.getElementById('imageCanvas');
             const ctx = canvas.getContext('2d');
             
-            // Dibujar línea de frecuencia (eje X)
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -635,7 +645,6 @@ Ejemplo:
             ctx.lineTo(calibrationData.x2, calibrationData.y2);
             ctx.stroke();
             
-            // Dibujar línea de magnitud (eje Y)
             ctx.strokeStyle = 'rgba(0, 0, 255, 0.5)';
             ctx.beginPath();
             ctx.moveTo(calibrationData.x3, calibrationData.y3);
@@ -644,17 +653,15 @@ Ejemplo:
         }
         
         function confirmCalibration() {
-            // Configurar el canvas para extracción de datos
             const canvas = document.getElementById('imageCanvas');
             canvas.onclick = handleDataExtractionClick;
             
             document.getElementById('calibration-section').classList.remove('calibration-active');
             document.getElementById('startCalibrationBtn').disabled = false;
             
-            showCalibrationStatus('Calibración confirmada. Ahora puedes hacer clic en la curva para extraer datos.', 'success');
-            showStatus('Calibración completada. Haz clic en puntos de la curva para extraer datos.', 'info');
+            showCalibrationStatus('Calibración confirmada. Haz clic en la curva para extraer datos.', 'success');
+            showStatus('Calibración lista. Empieza a muestrear puntos.', 'info');
             
-            // Limpiar después de 5 segundos
             setTimeout(() => {
                 document.getElementById('calibrationStatus').innerHTML = '';
             }, 5000);
@@ -668,18 +675,18 @@ Ejemplo:
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Redibujar la imagen base si existe
-            if (baseImage) {
-                ctx.drawImage(baseImage, 0, 0);
-            }
+            if (baseImage) ctx.drawImage(baseImage, 0, 0);
             
             document.getElementById('calibration-section').classList.remove('calibration-active');
             document.getElementById('startCalibrationBtn').disabled = false;
             document.getElementById('confirmCalibrationBtn').disabled = true;
             
-            showCalibrationStatus('Calibración reiniciada. Puedes comenzar de nuevo.', 'info');
+            showCalibrationStatus('Calibración reiniciada.', 'info');
         }
         
+        // =====================
+        // Extracción de puntos
+        // =====================
         function handleDataExtractionClick(event) {
             const canvas = document.getElementById('imageCanvas');
             const ctx = canvas.getContext('2d');
@@ -687,17 +694,13 @@ Ejemplo:
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
 
-            // Guardar estado actual del canvas
             saveCanvasState();
             
-            // Convertir coordenadas
             const frequency = convertXToFrequency(x);
             const magnitude = convertYToMagnitude(y);
             
-            // Almacenar punto
             extractedData.push({freq: frequency, mag: magnitude});
             
-            // Dibujar solo el punto rojo
             ctx.fillStyle = 'red';
             ctx.beginPath();
             ctx.arc(x, y, 4, 0, Math.PI * 2);
@@ -708,12 +711,9 @@ Ejemplo:
         
         function undoLastPoint() {
             if (extractedData.length === 0 || canvasHistory.length <= 1) return;
-            
-            // Eliminar último punto
             extractedData.pop();
             canvasHistory.pop();
             
-            // Restaurar canvas
             const canvas = document.getElementById('imageCanvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
@@ -735,89 +735,176 @@ Ejemplo:
         }
         
         function convertXToFrequency(x) {
-            // Mapear coordenada X a valor de frecuencia (escala logarítmica)
             const { x1, x2, freqMin, freqMax } = calibrationData;
-            
-            // Calcular posición relativa en el eje X (0 a 1)
             const t = (x - x1) / (x2 - x1);
-            
-            // Escala logarítmica para frecuencia
             return freqMin * Math.pow(freqMax / freqMin, t);
         }
         
         function convertYToMagnitude(y) {
-            // Mapear coordenada Y a valor de magnitud (escala lineal)
             const { y3, y4, magMin, magMax } = calibrationData;
-            
-            // Calcular posición relativa en el eje Y (0 a 1)
             const t = (y - y3) / (y4 - y3);
-            
-            // Escala lineal para magnitud
             return magMin + t * (magMax - magMin);
         }
         
+        // =====================
+        // Procesamiento / Manual
+        // =====================
         function processData() {
             try {
                 if (currentMethod === 'manual') {
-                    processManualData();
+                    // Si hay texto pegado, parsearlo
+                    const pasted = (document.getElementById('manualData').value || '').trim();
+                    if (pasted) {
+                        extractedData = parsePastedData(pasted);
+                        lastImportedFormat = 'manual';
+                        showStatus('Datos manuales procesados.', 'success');
+                    } else if (extractedData.length === 0) {
+                        showStatus('Pega datos o sube un archivo.', 'error');
+                        return;
+                    }
                 } else if (extractedData.length === 0) {
-                    showStatus('No hay datos para procesar. Sube una imagen, calibra y haz clic en puntos del gráfico.', 'error');
+                    showStatus('No hay datos para procesar. Sube una imagen, calibra y muestrea puntos.', 'error');
                     return;
                 }
                 
-                // Ordenar y limpiar datos
+                // Ordenar y limpiar
                 extractedData.sort((a, b) => a.freq - b.freq);
                 removeDuplicateFrequencies();
                 
                 updatePreview();
-                showStatus(`✅ Procesados ${extractedData.length} puntos de datos.`, 'success');
+                showStatus(`✅ Procesados ${extractedData.length} puntos.`, 'success');
                 
             } catch (error) {
                 console.error('Error al procesar:', error);
                 showStatus('Error al procesar los datos. Verifica el formato.', 'error');
             }
         }
-        
-        function processManualData() {
-            const data = document.getElementById('manualData').value.trim();
-            if (!data) {
-                showStatus('Por favor ingresa los datos manuales.', 'error');
-                return;
-            }
-            
-            extractedData = [];
-            const lines = data.split('\n');
-            
-            for (let line of lines) {
-                line = line.trim();
-                if (line && !line.startsWith('#')) {
-                    const parts = line.split(/[,;\t]/).map(v => v.trim());
-                    if (parts.length >= 2) {
-                        const freq = parseFloat(parts[0]);
-                        const mag = parseFloat(parts[1]);
-                        if (!isNaN(freq) && !isNaN(mag)) {
-                            extractedData.push({freq, mag});
-                        }
-                    }
+
+        function parsePastedData(text) {
+            const out = [];
+            const lines = text.split('\n');
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line || line.startsWith('#')) continue;
+                const parts = line.split(/[,;\t ]+/).filter(Boolean);
+                if (parts.length >= 2) {
+                    const f = parseFloat(parts[0]);
+                    const m = parseFloat(parts[1]);
+                    if (!isNaN(f) && !isNaN(m)) out.push({freq: f, mag: m});
                 }
             }
+            if (out.length < 2) throw new Error('Insuficientes datos válidos');
+            return out;
+        }
+        
+        function handleManualFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = e.target.result;
+                    const { format, data } = parseFromContent(content);
+                    if (!data || data.length < 2) {
+                        showStatus('No se hallaron datos válidos en el archivo.', 'error');
+                        return;
+                    }
+                    extractedData = data.sort((a, b) => a.freq - b.freq);
+                    lastImportedFormat = format;
+                    updatePreview();
+                    const base = file.name.replace(/\.[^.]+$/, '');
+                    document.getElementById('exportFilename').value = base + '_convertido';
+                    showStatus(`Archivo importado como ${format.toUpperCase()}. Listo para convertir.`, 'success');
+                } catch (err) {
+                    console.error(err);
+                    showStatus('No se pudo leer el archivo. Verifica el formato.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseFromContent(content) {
+            const normalized = content.replace(/\r\n/g, '\n');
+            const head = normalized.slice(0, 300).toLowerCase();
             
-            if (extractedData.length === 0) {
-                throw new Error('No se encontraron datos válidos');
+            // Detectar CRV
+            if (/^type:\s*\w+/mi.test(normalized)) {
+                return { format: 'crv', data: parseCRV(normalized) };
             }
+            // Detectar RiTA (cabecera con Phase/Coherence)
+            if (/frequency.*\t.*magnitude.*\t.*phase.*\t.*coherence/i.test(normalized)) {
+                return { format: 'rita', data: parseRiTA(normalized) };
+            }
+            // Por descarte: Smaart ASCII simple
+            return { format: 'smaart', data: parseSmaart(normalized) };
+        }
+
+        function parseSmaart(text) {
+            const out = [];
+            const lines = text.split('\n');
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line || line.startsWith('#')) continue;
+                // Dos primeras columnas = freq, mag
+                const parts = line.split(/[\t,; ]+/).filter(Boolean);
+                if (parts.length >= 2) {
+                    const f = parseFloat(parts[0]);
+                    const m = parseFloat(parts[1]);
+                    if (!isNaN(f) && !isNaN(m)) out.push({freq: f, mag: m});
+                }
+            }
+            return out;
+        }
+
+        function parseRiTA(text) {
+            const out = [];
+            const lines = text.split('\n');
+            let started = false;
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line) continue;
+                // Saltar la línea de nombre si existe
+                if (!started && /frequency.*magnitude.*phase.*coherence/i.test(line)) {
+                    started = true;
+                    continue;
+                }
+                if (!started) continue;
+                const parts = line.split(/\t|,|;| +/).filter(Boolean);
+                if (parts.length >= 2) {
+                    const f = parseFloat(parts[0]);
+                    const m = parseFloat(parts[1]);
+                    if (!isNaN(f) && !isNaN(m)) out.push({freq: f, mag: m});
+                }
+            }
+            return out;
+        }
+
+        function parseCRV(text) {
+            const out = [];
+            const lines = text.split('\n');
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line || line.includes(':')) continue; // saltar encabezados Type:, Line:, etc.
+                const parts = line.split(/[\t,; ]+/).filter(Boolean);
+                if (parts.length >= 2) {
+                    const f = parseFloat(parts[0]);
+                    const m = parseFloat(parts[1]);
+                    if (!isNaN(f) && !isNaN(m)) out.push({freq: f, mag: m});
+                }
+            }
+            return out;
         }
         
         function removeDuplicateFrequencies() {
             const uniqueData = [];
-            const freqSet = new Set();
-            
-            for (const point of extractedData) {
-                if (!freqSet.has(point.freq)) {
-                    freqSet.add(point.freq);
-                    uniqueData.push(point);
+            const seen = new Set();
+            for (const p of extractedData) {
+                const key = p.freq.toFixed(6);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    uniqueData.push(p);
                 }
             }
-            
             extractedData = uniqueData;
         }
         
@@ -833,7 +920,7 @@ Ejemplo:
             preview += '─'.repeat(30) + '\n';
             
             extractedData.forEach(point => {
-                preview += `${point.freq.toFixed(1)}\t${point.mag.toFixed(2)}\n`;
+                preview += `${point.freq.toFixed(1)}\t${point.mag.toFixed(2)}\n`
             });
             
             document.getElementById('dataPreview').textContent = preview;
@@ -842,39 +929,33 @@ Ejemplo:
             updateUndoButton();
         }
         
-        function interpolateData(originalData, stepsPerOctave = 12) {
-            if (originalData.length < 2) return originalData;
-
-            // Asegurar que estén ordenados
-            originalData.sort((a, b) => a.freq - b.freq);
-
+        function interpolateData(originalData, stepsPerOctave = 24) {
+            if (originalData.length < 2) return originalData.slice();
+            const data = originalData.slice().sort((a, b) => a.freq - b.freq);
             const interpolated = [];
-
-            for (let i = 0; i < originalData.length - 1; i++) {
-                const p1 = originalData[i];
-                const p2 = originalData[i + 1];
-
-                // Log steps in freq domain
+            for (let i = 0; i < data.length - 1; i++) {
+                const p1 = data[i];
+                const p2 = data[i + 1];
                 const f1 = p1.freq;
                 const f2 = p2.freq;
                 const m1 = p1.mag;
                 const m2 = p2.mag;
-
+                if (f2 <= f1) continue;
                 const steps = Math.ceil(Math.log2(f2 / f1) * stepsPerOctave);
-
                 for (let s = 0; s < steps; s++) {
                     const t = s / steps;
-                    const freq = f1 * Math.pow(f2 / f1, t); // log space
-                    const mag = m1 + (m2 - m1) * t;          // linear interp
-                    interpolated.push({ freq, mag });
+                    const f = f1 * Math.pow(f2 / f1, t);
+                    const m = m1 + (m2 - m1) * t;
+                    interpolated.push({ freq: f, mag: m });
                 }
             }
-
-            // Incluir último punto
-            interpolated.push(originalData[originalData.length - 1]);
+            interpolated.push(data[data.length - 1]);
             return interpolated;
         }
         
+        // =====================
+        // Exportación
+        // =====================
         function exportData() {
             if (extractedData.length === 0) {
                 alert('No hay datos para exportar.');
@@ -885,8 +966,7 @@ Ejemplo:
             const format = document.getElementById('exportFormat').value;
             if (!filename) filename = 'Exportacion_FR';
             
-            // 👉 Interpolar antes de exportar
-            const dataToExport = interpolateData(extractedData, 24); // 24 pasos por octave
+            const dataToExport = interpolateData(extractedData, 24);
 
             let content = '';
             let extension = '.txt';
@@ -905,14 +985,12 @@ Ejemplo:
                 });
             } else if (format === 'crv') {
                 extension = '.crv';
-                // Encabezados para formato CRV según especificación SMAART
                 content += 'Type: TF\n';
                 content += 'Line: 2\n';
-                content += 'Color: FF0000\n';  // Rojo por defecto
+                content += 'Color: FF0000\n';
                 content += 'Show: 1\n';
-                content += 'Tolerance: 3\n';   // 3 dB de tolerancia
-                content += 'Offset: 0\n';      // Sin offset
-                // Datos
+                content += 'Tolerance: 3\n';
+                content += 'Offset: 0\n';
                 dataToExport.forEach(p => {
                     content += `${p.freq.toFixed(1)}\t${p.mag.toFixed(2)}\n`;
                 });
@@ -929,20 +1007,24 @@ Ejemplo:
             URL.revokeObjectURL(url);
         }
         
+        // =====================
+        // Limpieza
+        // =====================
         function clearData() {
             extractedData = [];
             calibrationPoints = [];
             calibrationStep = 0;
             canvasHistory = [];
+            lastImportedFormat = null;
             
             document.getElementById('dataPreview').textContent = '';
             document.getElementById('output').style.display = 'none';
             document.getElementById('exportBtn').disabled = true;
             document.getElementById('status').innerHTML = '';
-            document.getElementById('calibrationStatus').innerHTML = '';
+            const cal = document.getElementById('calibrationStatus');
+            if (cal) cal.innerHTML = '';
             document.getElementById('exportFilename').value = 'FR_Export_Data';
             
-            // Limpiar canvas
             const canvas = document.getElementById('imageCanvas');
             if (canvas) {
                 const ctx = canvas.getContext('2d');
@@ -950,32 +1032,39 @@ Ejemplo:
                 canvas.style.display = 'none';
             }
             
-            // Limpiar inputs
-            document.getElementById('imageFile').value = '';
-            document.getElementById('manualData').value = '';
+            const imgFile = document.getElementById('imageFile');
+            if (imgFile) imgFile.value = '';
+            const manFile = document.getElementById('manualFile');
+            if (manFile) manFile.value = '';
+            const manData = document.getElementById('manualData');
+            if (manData) manData.value = '';
             
-            // Restablecer botones de calibración
-            document.getElementById('startCalibrationBtn').disabled = false;
-            document.getElementById('confirmCalibrationBtn').disabled = true;
-            document.getElementById('calibration-section').classList.remove('calibration-active');
+            const startBtn = document.getElementById('startCalibrationBtn');
+            const confirmBtn = document.getElementById('confirmCalibrationBtn');
+            const section = document.getElementById('calibration-section');
+            if (startBtn) startBtn.disabled = false;
+            if (confirmBtn) confirmBtn.disabled = true;
+            if (section) section.classList.remove('calibration-active');
+            
             document.getElementById('undoBtn').disabled = true;
             
             showStatus('Datos limpiados.', 'info');
         }
         
+        // =====================
+        // UI helpers
+        // =====================
         function showStatus(message, type) {
             const statusDiv = document.getElementById('status');
             statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-            
             if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    statusDiv.innerHTML = '';
-                }, 5000);
+                setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
             }
         }
         
         function showCalibrationStatus(message, type) {
             const statusDiv = document.getElementById('calibrationStatus');
+            if (!statusDiv) return;
             statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
         }
     </script>
