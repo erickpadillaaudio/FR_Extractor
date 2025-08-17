@@ -384,8 +384,9 @@ Ejemplo:
             <div class="filename-input">
                 <label for="exportFormat">Formato de exportación:</label>
                 <select id="exportFormat">
-                    <option value="smaart">SMAART</option>
+                    <option value="smaart">SMAART (TXT)</option>
                     <option value="rita">RiTA</option>
+                    <option value="crv">SMAART (CRV)</option>
                 </select>
             </div>
 
@@ -397,6 +398,7 @@ Ejemplo:
             <div class="format-info">
                 <strong>📋 Formato de exportación:</strong><br>
                 • Archivo TXT compatible con SMAART<br>
+                • Archivo CRV para curvas objetivo en SMAART<br>
                 • Columnas: Frecuencia (Hz) | Magnitud (dB)<br>
                 • Separado por tabulaciones<br>
                 • Listo para importar en SMAART como "Reference Trace"
@@ -843,80 +845,91 @@ Ejemplo:
         }
         
         function interpolateData(originalData, stepsPerOctave = 12) {
-    if (originalData.length < 2) return originalData;
+            if (originalData.length < 2) return originalData;
 
-    // Asegurar que estén ordenados
-    originalData.sort((a, b) => a.freq - b.freq);
+            // Asegurar que estén ordenados
+            originalData.sort((a, b) => a.freq - b.freq);
 
-    const interpolated = [];
+            const interpolated = [];
 
-    for (let i = 0; i < originalData.length - 1; i++) {
-        const p1 = originalData[i];
-        const p2 = originalData[i + 1];
+            for (let i = 0; i < originalData.length - 1; i++) {
+                const p1 = originalData[i];
+                const p2 = originalData[i + 1];
 
-        // Log steps in freq domain
-        const f1 = p1.freq;
-        const f2 = p2.freq;
-        const m1 = p1.mag;
-        const m2 = p2.mag;
+                // Log steps in freq domain
+                const f1 = p1.freq;
+                const f2 = p2.freq;
+                const m1 = p1.mag;
+                const m2 = p2.mag;
 
-        const steps = Math.ceil(Math.log2(f2 / f1) * stepsPerOctave);
+                const steps = Math.ceil(Math.log2(f2 / f1) * stepsPerOctave);
 
-        for (let s = 0; s < steps; s++) {
-            const t = s / steps;
-            const freq = f1 * Math.pow(f2 / f1, t); // log space
-            const mag = m1 + (m2 - m1) * t;          // linear interp
-            interpolated.push({ freq, mag });
+                for (let s = 0; s < steps; s++) {
+                    const t = s / steps;
+                    const freq = f1 * Math.pow(f2 / f1, t); // log space
+                    const mag = m1 + (m2 - m1) * t;          // linear interp
+                    interpolated.push({ freq, mag });
+                }
+            }
+
+            // Incluir último punto
+            interpolated.push(originalData[originalData.length - 1]);
+            return interpolated;
         }
-    }
-
-    // Incluir último punto
-    interpolated.push(originalData[originalData.length - 1]);
-    return interpolated;
-}
-
         
         function exportData() {
-    if (extractedData.length === 0) {
-        alert('No hay datos para exportar.');
-        return;
-    }
+            if (extractedData.length === 0) {
+                alert('No hay datos para exportar.');
+                return;
+            }
 
-    let filename = document.getElementById('exportFilename').value.trim();
-    const format = document.getElementById('exportFormat').value;
-    if (!filename) filename = 'Exportacion_FR';
-    if (!filename.toLowerCase().endsWith('.txt')) filename += '.txt';
+            let filename = document.getElementById('exportFilename').value.trim();
+            const format = document.getElementById('exportFormat').value;
+            if (!filename) filename = 'Exportacion_FR';
+            
+            // 👉 Interpolar antes de exportar
+            const dataToExport = interpolateData(extractedData, 24); // 24 pasos por octave
 
-    // 👉 Interpolar antes de exportar
-    const dataToExport = interpolateData(extractedData, 24); // 24 pasos por octava
+            let content = '';
+            let extension = '.txt';
 
-    let content = '';
+            if (format === 'smaart') {
+                content += '# Frequency Response Data for SMAART\n';
+                content += '# Frequency (Hz)\tMagnitude (dB)\n';
+                dataToExport.forEach(p => {
+                    content += `${p.freq.toFixed(1)}\t${p.mag.toFixed(2)}\n`;
+                });
+            } else if (format === 'rita') {
+                content += '\tMyMeasurement\n';
+                content += 'Frequency (Hz)\tMagnitude (dB)\tPhase (degrees)\tCoherence\n';
+                dataToExport.forEach(p => {
+                    content += `${p.freq.toFixed(6)}\t${p.mag.toFixed(2)}\t0.00\t0.00\n`;
+                });
+            } else if (format === 'crv') {
+                extension = '.crv';
+                // Encabezados para formato CRV según especificación SMAART
+                content += 'Type: TF\n';
+                content += 'Line: 2\n';
+                content += 'Color: FF0000\n';  // Rojo por defecto
+                content += 'Show: 1\n';
+                content += 'Tolerance: 3\n';   // 3 dB de tolerancia
+                content += 'Offset: 0\n';      // Sin offset
+                // Datos
+                dataToExport.forEach(p => {
+                    content += `${p.freq.toFixed(1)}\t${p.mag.toFixed(2)}\n`;
+                });
+            }
 
-    if (format === 'smaart') {
-        content += '# Frequency Response Data for SMAART\n';
-        content += '# Frequency (Hz)\tMagnitude (dB)\n';
-        dataToExport.forEach(p => {
-            content += `${p.freq.toFixed(1)}\t${p.mag.toFixed(2)}\n`;
-        });
-    } else if (format === 'rita') {
-        content += '\tMyMeasurement\n';
-        content += 'Frequency (Hz)\tMagnitude (dB)\tPhase (degrees)\tCoherence\n';
-        dataToExport.forEach(p => {
-            content += `${p.freq.toFixed(6)}\t${p.mag.toFixed(2)}\t0.00\t0.00\n`;
-        });
-    }
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename + extension;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
         
         function clearData() {
             extractedData = [];
