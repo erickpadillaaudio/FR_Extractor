@@ -377,16 +377,16 @@ Ejemplo:
             <div id="dataPreview" class="preview"></div>
             
             <div class="filename-input">
-                <label for="exportFilename">Nombre del archivo de exportación:</label>
+                <label for="exportFilename">Nombre del archivo:</label>
                 <input type="text" id="exportFilename" placeholder="Ej: Respuesta_Sala_A" value="FR_Export_Data">
             </div>
             
             <div class="filename-input">
-                <label for="exportFormat">Formato de exportación:</label>
+                <label for="exportFormat">Formato de archivo:</label>
                 <select id="exportFormat">
-                    <option value="smaart">SMAART (TXT)</option>
-                    <option value="rita">RiTA</option>
-                    <option value="crv">SMAART (CRV)</option>
+                    <option value="smaart">Smaart TF (ASCII)</option>
+                    <option value="rita">RiTA (ASCII)</option>
+                    <option value="crv">Smaart TF Target Curve (.crv)</option>
                 </select>
             </div>
 
@@ -397,11 +397,9 @@ Ejemplo:
             
             <div class="format-info">
                 <strong>📋 Formato de exportación:</strong><br>
-                • Archivo TXT compatible con SMAART<br>
-                • Archivo CRV para curvas objetivo en SMAART<br>
-                • Columnas: Frecuencia (Hz) | Magnitud (dB)<br>
-                • Separado por tabulaciones<br>
-                • Listo para importar en SMAART como "Reference Trace"
+                • Archivo .txt ASCII compatible con Smaart en Transfer Function<br>
+                • Archivo .crv para Target Curves en Smaart modo Transfer Function<br>
+                En Smaart Menú Options/ Target Curves/ Transfet Function Import
             </div>
         </div>
     </div>
